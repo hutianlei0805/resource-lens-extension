@@ -60,7 +60,7 @@ export class StatusBarManager {
   update(
     cpu: CpuInfo | null,
     mem: MemoryInfo | null,
-    gpu: GpuInfo | null,
+    gpu: GpuInfo[] | null, 
   ): void {
     const config = vscode.workspace.getConfiguration('resourceLens');
 
@@ -85,20 +85,37 @@ export class StatusBarManager {
     );
 
     let gpuText: string | null = null;
-    if (gpu && config.get<boolean>('showGpu', true)) {
-      if (gpu.vramUsedMB !== null && gpu.vramTotalMB !== null) {
-        gpuText = `$(graph-line) ${(gpu.vramUsedMB / 1024).toFixed(1)}/${(gpu.vramTotalMB / 1024).toFixed(1)} GB`;
-      } else if (gpu.vramUsedMB !== null) {
-        gpuText = `$(graph-line) ${(gpu.vramUsedMB / 1024).toFixed(1)} GB`;
+    if (gpu && gpu.length > 0 && config.get<boolean>('showGpu', true)) {
+      let totalUsedMB = 0;
+      let totalMaxMB = 0;
+      let hasUsed = false;
+      let hasMax = false;
+
+      for (const g of gpu) {
+        if (g.vramUsedMB !== null) {
+          totalUsedMB += g.vramUsedMB;
+          hasUsed = true;
+        }
+        if (g.vramTotalMB !== null) {
+          totalMaxMB += g.vramTotalMB;
+          hasMax = true;
+        }
+      }
+
+      if (hasUsed && hasMax) {
+        gpuText = `$(graph-line) ${(totalUsedMB / 1024).toFixed(1)}/${(totalMaxMB / 1024).toFixed(1)} GB`;
+      } else if (hasUsed) {
+        gpuText = `$(graph-line) ${(totalUsedMB / 1024).toFixed(1)} GB`;
       } else {
         gpuText = `$(graph-line) N/A`;
       }
     }
+
     this.updateItem(
       this.gpuItem,
       'gpu',
       gpuText,
-      gpu ? buildGpuTooltip(gpu) : null,
+      gpu && gpu.length > 0 ? buildGpuTooltip(gpu) : null, 
       this.gpuTooltip,
     );
   }
