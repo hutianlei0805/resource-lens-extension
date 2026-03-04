@@ -2,51 +2,36 @@ import * as fs from 'fs';
 import * as os from 'os';
 import { CpuInfo } from './types';
 
-interface CpuTick {
-  idle: number;
-  total: number;
-}
-
-let previousTicks: CpuTick[] | null = null;
+// 移除无用的宿主机CPU Tick代码
 let previousUsage: number = 0;
 let previousTime: number = Date.now();
 
-function snapshot(): CpuTick[] {
-  return os.cpus().map((cpu) => {
-    const { user, nice, sys, idle, irq } = cpu.times;
-    const total = user + nice + sys + idle + irq;
-    return { idle, total };
-  });
-}
-
 export function collectCpu(): CpuInfo {
   const cpus = os.cpus();
-  const currentTicks = snapshot();
   const currentTime = Date.now();
-
   let podOverall = 0;
   let cores: number[] = [];
+  let containerCpuCoreCount = 1;
 
   try {
-    let cpuLimit = cpus.length;
     const quotaStr = fs.readFileSync('/sys/fs/cgroup/cpu/cpu.cfs_quota_us', 'utf8').trim();
     const periodStr = fs.readFileSync('/sys/fs/cgroup/cpu/cpu.cfs_period_us', 'utf8').trim();
     const quota = parseInt(quotaStr);
     const period = parseInt(periodStr);
 
     if (quota > 0 && period > 0) {
-      cpuLimit = quota / period;
+      containerCpuCoreCount = quota / period;
     }
 
-    const usageStr = fs.readFileSync('/sys/fs/cgroup/cpuacct.usage', 'utf8').trim();
+    const usageStr = fs.readFileSync('/sys/fs/cgroup/cpuacct/cpuacct.usage', 'utf8').trim();
     const currentUsage = parseInt(usageStr);
 
     if (previousUsage > 0 && previousTime > 0) {
       const usageDelta = currentUsage - previousUsage;
-      const timeDelta = (currentTime - previousTime) * 1000000; // 毫秒转纳秒
+      const timeDelta = (currentTime - previousTime) * 1000000;
       
       if (timeDelta > 0) {
-        podOverall = ((usageDelta / timeDelta) / cpuLimit) * 100;
+        podOverall = ((usageDelta / timeDelta) / containerCpuCoreCount) * 100;
       }
     }
     previousUsage = currentUsage;
@@ -56,17 +41,15 @@ export function collectCpu(): CpuInfo {
   }
 
   previousTime = currentTime;
-  previousTicks = currentTicks; 
 
   const formattedOverall = isNaN(podOverall) ? 0 : Math.max(0, Math.min(100, Math.round(podOverall * 10) / 10));
 
-
-  cores = new Array(cpus.length).fill(formattedOverall);
+  cores = new Array(Math.ceil(containerCpuCoreCount)).fill(formattedOverall);
 
   return {
     overall: formattedOverall,
     cores: cores,
-    model: `Pod Limit: ${cpus.length} Host Cores (Cgroup Limit)`, 
+    model: cpus[0]?.model ?? 'Unknown', 
     speedMHz: cpus[0]?.speed ?? 0,
   };
 }
