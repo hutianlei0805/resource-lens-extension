@@ -2,7 +2,6 @@ import * as fs from 'fs';
 import * as os from 'os';
 import { CpuInfo } from './types';
 
-// 移除无用的宿主机CPU Tick代码
 let previousUsage: number = 0;
 let previousTime: number = Date.now();
 
