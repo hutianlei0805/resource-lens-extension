@@ -1,52 +1,34 @@
+import * as fs from 'fs';
 import * as os from 'os';
-import { CpuInfo } from './types';
 
-interface CpuTick {
-  idle: number;
-  total: number;
-}
+let previousUsage: number = 0;
+let previousTime: number = Date.now();
 
-let previousTicks: CpuTick[] | null = null;
+export function collectCpu(): any {
+    try {
+        const quota = parseInt(fs.readFileSync('/sys/fs/cgroup/cpu/cpu.cfs_quota_us', 'utf8'));
+        const period = parseInt(fs.readFileSync('/sys/fs/cgroup/cpu/cpu.cfs_period_us', 'utf8'));
+        const cpuLimit = quota > 0 ? quota / period : os.cpus().length;
 
-function snapshot(): CpuTick[] {
-  return os.cpus().map((cpu) => {
-    const { user, nice, sys, idle, irq } = cpu.times;
-    const total = user + nice + sys + idle + irq;
-    return { idle, total };
-  });
-}
+        const currentUsage = parseInt(fs.readFileSync('/sys/fs/cgroup/cpuacct.usage', 'utf8'));
+        const currentTime = Date.now();
 
-export function collectCpu(): CpuInfo {
-  const cpus = os.cpus();
-  const currentTicks = snapshot();
+        const usageDelta = currentUsage - previousUsage;
+        const timeDelta = (currentTime - previousTime) * 1000000;
 
-  let cores: number[];
+        let overall = (usageDelta / timeDelta) / cpuLimit * 100;
+        overall = Math.min(100, Math.round(overall * 10) / 10);
 
-  if (previousTicks && previousTicks.length === currentTicks.length) {
-    cores = currentTicks.map((cur, i) => {
-      const prev = previousTicks![i];
-      const idleDelta = cur.idle - prev.idle;
-      const totalDelta = cur.total - prev.total;
-      const usage =
-        totalDelta === 0 ? 0 : ((totalDelta - idleDelta) / totalDelta) * 100;
-      return Math.round(usage * 10) / 10;
-    });
-  } else {
-    cores = currentTicks.map(() => 0);
-  }
+        previousUsage = currentUsage;
+        previousTime = currentTime;
 
-  previousTicks = currentTicks;
-
-  const overall =
-    cores.length === 0
-      ? 0
-      : Math.round((cores.reduce((sum, c) => sum + c, 0) / cores.length) * 10) /
-        10;
-
-  return {
-    overall,
-    cores,
-    model: cpus[0]?.model ?? 'Unknown',
-    speedMHz: cpus[0]?.speed ?? 0,
-  };
+        return {
+            overall: isNaN(overall) ? 0 : overall,
+            cores: [overall], 
+            model: `Pod Limit: ${cpuLimit} Core(s)`,
+            speedMHz: os.cpus()[0]?.speed ?? 0,
+        };
+    } catch (e) {
+        return { overall: 0, cores: [], model: 'Fallback Mode', speedMHz: 0 };
+    }
 }
