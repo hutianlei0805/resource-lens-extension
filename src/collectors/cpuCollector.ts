@@ -5,26 +5,27 @@ import { CpuInfo } from './types';
 let previousUsage: number = 0;
 let previousTime: number = Date.now();
 
-const quota = parseInt(fs.readFileSync('/sys/fs/cgroup/cpu/cpu.cfs_quota_us', 'utf8').trim(), 10);
-const period = parseInt(fs.readFileSync('/sys/fs/cgroup/cpu/cpu.cfs_period_us', 'utf8').trim(), 10);
-const containerCpuCoreCount = quota / period;
-
-const logicalCores = Math.ceil(containerCpuCoreCount);
+let containerCpuCoreCount: number | null = null;
+let logicalCores: number = 1;
 
 export function collectCpu(): CpuInfo {
   const cpus = os.cpus();
   const currentTime = Date.now();
   let podOverall = 0;
 
+  if (containerCpuCoreCount === null) {
+    const quota = parseInt(fs.readFileSync('/sys/fs/cgroup/cpu/cpu.cfs_quota_us', 'utf8').trim(), 10);
+    const period = parseInt(fs.readFileSync('/sys/fs/cgroup/cpu/cpu.cfs_period_us', 'utf8').trim(), 10);
+    containerCpuCoreCount = quota / period;
+    logicalCores = Math.ceil(containerCpuCoreCount);
+  }
+
   const currentUsage = parseInt(fs.readFileSync('/sys/fs/cgroup/cpuacct/cpuacct.usage', 'utf8').trim(), 10);
 
   if (previousUsage > 0) {
     const usageDelta = currentUsage - previousUsage;
     const timeDelta = (currentTime - previousTime) * 1000000; 
-    
-    if (timeDelta > 0) {
-      podOverall = ((usageDelta / timeDelta) / containerCpuCoreCount) * 100;
-    }
+    podOverall = ((usageDelta / timeDelta) / containerCpuCoreCount) * 100;
   }
   
   previousUsage = currentUsage;
