@@ -6,14 +6,12 @@ export function collectMemory(): MemoryInfo {
   const limitPath = '/sys/fs/cgroup/memory/memory.limit_in_bytes';
   const usagePath = '/sys/fs/cgroup/memory/memory.usage_in_bytes';
 
-  // 直接读取文件，不使用 try-catch
   const limitStr = fs.readFileSync(limitPath, 'utf8').trim();
   const usageStr = fs.readFileSync(usagePath, 'utf8').trim();
 
   let totalBytes = parseInt(limitStr);
   const usedBytes = parseInt(usageStr);
 
-  // 确保 freeBytes 不为负数
   const freeBytes = Math.max(0, totalBytes - usedBytes);
 
   return { totalBytes, usedBytes, freeBytes };
