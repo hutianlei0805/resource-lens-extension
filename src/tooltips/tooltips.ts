@@ -26,21 +26,35 @@ export function buildMemoryTooltip(mem: MemoryInfo): string {
   ]);
 }
 
-export function buildGpuTooltip(gpu: GpuInfo): string {
-  const rows: [string, string][] = [['Name', gpu.name]];
-  if (gpu.coreUsage !== null) {
-    rows.push(['Core Usage', `${gpu.coreUsage.toFixed(1)}%`]);
+export function buildGpuTooltip(gpus: GpuInfo[]): string {
+  if (gpus.length === 0) {
+    return table([['Status', 'No GPU detected']]);
   }
-  if (gpu.vramTotalMB !== null && gpu.vramUsedMB !== null) {
-    rows.push([
-      'VRAM',
-      `${(gpu.vramUsedMB / 1024).toFixed(1)}/${(gpu.vramTotalMB / 1024).toFixed(1)} GB`,
-    ]);
-  } else if (gpu.vramUsedMB !== null) {
-    rows.push(['VRAM Used', `${(gpu.vramUsedMB / 1024).toFixed(1)} GB`]);
-  }
-  if (gpu.temperatureC !== null) {
-    rows.push(['Temperature', `${gpu.temperatureC}\u00B0C`]);
-  }
+
+  const rows: [string, string][] = [];
+
+  gpus.forEach((gpu, index) => {
+    const prefix = gpus.length > 1 ? `GPU ${index} ` : '';
+
+    rows.push([`${prefix}Name`, gpu.name]);
+    
+    if (gpu.coreUsage !== null) {
+      rows.push([`${prefix}Core Usage`, `${gpu.coreUsage.toFixed(1)}%`]);
+    }
+    
+    if (gpu.vramTotalMB !== null && gpu.vramUsedMB !== null) {
+      rows.push([
+        `${prefix}VRAM`,
+        `${(gpu.vramUsedMB / 1024).toFixed(1)}/${(gpu.vramTotalMB / 1024).toFixed(1)} GB`,
+      ]);
+    } else if (gpu.vramUsedMB !== null) {
+      rows.push([`${prefix}VRAM Used`, `${(gpu.vramUsedMB / 1024).toFixed(1)} GB`]);
+    }
+    
+    if (gpu.temperatureC !== null) {
+      rows.push([`${prefix}Temperature`, `${gpu.temperatureC}\u00B0C`]);
+    }
+  });
+
   return table(rows);
 }
