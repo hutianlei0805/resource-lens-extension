@@ -20,7 +20,7 @@ export function collectCpu(): CpuInfo {
 
   if (previousUsage > 0) {
     const usageDelta = currentUsage - previousUsage;
-    const timeDelta = (currentTime - previousTime) * 1000000; // 毫秒转纳秒
+    const timeDelta = (currentTime - previousTime) * 1000000; 
     
     if (timeDelta > 0) {
       podOverall = ((usageDelta / timeDelta) / containerCpuCoreCount) * 100;
