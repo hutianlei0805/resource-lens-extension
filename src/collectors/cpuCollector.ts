@@ -7,9 +7,10 @@ let previousTime: number = Date.now();
 
 let containerCpuCoreCount: number | null = null;
 let logicalCores: number = 1;
+let cachedModel: string = 'Unknown';
+let cachedSpeed: number = 0;
 
 export function collectCpu(): CpuInfo {
-  const cpus = os.cpus();
   const currentTime = Date.now();
   let podOverall = 0;
 
@@ -18,6 +19,10 @@ export function collectCpu(): CpuInfo {
     const period = parseInt(fs.readFileSync('/sys/fs/cgroup/cpu/cpu.cfs_period_us', 'utf8').trim(), 10);
     containerCpuCoreCount = quota / period;
     logicalCores = Math.ceil(containerCpuCoreCount);
+
+    const cpus = os.cpus();
+    cachedModel = cpus[0]?.model ?? 'Unknown';
+    cachedSpeed = cpus[0]?.speed ?? 0;
   }
 
   const currentUsage = parseInt(fs.readFileSync('/sys/fs/cgroup/cpuacct/cpuacct.usage', 'utf8').trim(), 10);
@@ -25,7 +30,8 @@ export function collectCpu(): CpuInfo {
   if (previousUsage > 0) {
     const usageDelta = currentUsage - previousUsage;
     const timeDelta = (currentTime - previousTime) * 1000000; 
-    podOverall = ((usageDelta / timeDelta) / containerCpuCoreCount) * 100;
+    
+    podOverall = ((usageDelta / timeDelta) / containerCpuCoreCount!) * 100;
   }
   
   previousUsage = currentUsage;
@@ -36,7 +42,7 @@ export function collectCpu(): CpuInfo {
   return {
     overall: formattedOverall,
     cores: new Array(logicalCores).fill(formattedOverall),
-    model: cpus[0]?.model ?? 'Unknown',
-    speedMHz: cpus[0]?.speed ?? 0,
+    model: cachedModel, 
+    speedMHz: cachedSpeed, 
   };
 }
