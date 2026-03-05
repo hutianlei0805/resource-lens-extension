@@ -36,6 +36,10 @@ export class StatusBarManager {
     this.gpuItem.tooltip = this.gpuTooltip;
   }
 
+  private formatFixed(val: number, padLen: number): string {
+    return val.toFixed(1).padStart(padLen, '\u2007');
+  }
+
   private updateItem(
     item: vscode.StatusBarItem,
     key: keyof typeof this.lastTexts,
@@ -60,7 +64,7 @@ export class StatusBarManager {
   update(
     cpu: CpuInfo | null,
     mem: MemoryInfo | null,
-    gpu: GpuInfo[] | null, 
+    gpu: GpuInfo[] | null,
   ): void {
     const config = vscode.workspace.getConfiguration('resourceLens');
 
@@ -68,18 +72,23 @@ export class StatusBarManager {
       this.cpuItem,
       'cpu',
       cpu && config.get<boolean>('showCpu', true)
-        ? `$(chip) ${cpu.overall.toFixed(1).padStart(4)}%`
+        ? `$(chip) ${this.formatFixed(cpu.overall, 5)}%`
         : null,
       cpu ? buildCpuTooltip(cpu) : null,
       this.cpuTooltip,
     );
 
+    let memText: string | null = null;
+    if (mem && config.get<boolean>('showMemory', true)) {
+      const totalStr = (mem.totalBytes / 1024 / 1024 / 1024).toFixed(1);
+      const usedStr = this.formatFixed(mem.usedBytes / 1024 / 1024 / 1024, totalStr.length);
+      memText = `$(server) ${usedStr}/${totalStr} GB`;
+    }
+
     this.updateItem(
       this.memItem,
       'mem',
-      mem && config.get<boolean>('showMemory', true)
-        ? `$(server) ${(mem.usedBytes / 1024 / 1024 / 1024).toFixed(1)}/${(mem.totalBytes / 1024 / 1024 / 1024).toFixed(1)} GB`
-        : null,
+      memText,
       mem ? buildMemoryTooltip(mem) : null,
       this.memTooltip,
     );
@@ -103,7 +112,9 @@ export class StatusBarManager {
       }
 
       if (hasUsed && hasMax) {
-        gpuText = `$(graph-line) ${(totalUsedMB / 1024).toFixed(1)}/${(totalMaxMB / 1024).toFixed(1)} GB`;
+        const totalStr = (totalMaxMB / 1024).toFixed(1);
+        const usedStr = this.formatFixed(totalUsedMB / 1024, totalStr.length);
+        gpuText = `$(graph-line) ${usedStr}/${totalStr} GB`;
       } else if (hasUsed) {
         gpuText = `$(graph-line) ${(totalUsedMB / 1024).toFixed(1)} GB`;
       } else {
@@ -115,7 +126,7 @@ export class StatusBarManager {
       this.gpuItem,
       'gpu',
       gpuText,
-      gpu && gpu.length > 0 ? buildGpuTooltip(gpu) : null, 
+      gpu && gpu.length > 0 ? buildGpuTooltip(gpu) : null,
       this.gpuTooltip,
     );
   }
