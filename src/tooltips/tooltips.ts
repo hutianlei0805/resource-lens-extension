@@ -37,11 +37,11 @@ export function buildGpuTooltip(gpus: GpuInfo[]): string {
     const prefix = gpus.length > 1 ? `GPU ${index} ` : '';
 
     rows.push([`${prefix}Name`, gpu.name]);
-    
+
     if (gpu.coreUsage !== null) {
-      rows.push([`${prefix}Core Usage`, `${gpu.coreUsage.toFixed(1)}%`]);
+      rows.push([`${prefix}Core Usage`, `${Math.round(gpu.coreUsage)}%`]);
     }
-    
+
     if (gpu.vramTotalMB !== null && gpu.vramUsedMB !== null) {
       rows.push([
         `${prefix}VRAM`,
@@ -50,9 +50,9 @@ export function buildGpuTooltip(gpus: GpuInfo[]): string {
     } else if (gpu.vramUsedMB !== null) {
       rows.push([`${prefix}VRAM Used`, `${(gpu.vramUsedMB / 1024).toFixed(1)} GB`]);
     }
-    
+
     if (gpu.temperatureC !== null) {
-      rows.push([`${prefix}Temperature`, `${gpu.temperatureC}\u00B0C`]);
+      rows.push([`${prefix}Temperature`, `${Math.round(gpu.temperatureC)}\u00B0C`]);
     }
   });
 
