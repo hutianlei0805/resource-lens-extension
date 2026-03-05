@@ -10,30 +10,14 @@ export class StatusBarManager {
   private cpuItem: vscode.StatusBarItem;
   private memItem: vscode.StatusBarItem;
   private gpuItem: vscode.StatusBarItem;
-  private cpuTooltip: vscode.MarkdownString;
-  private memTooltip: vscode.MarkdownString;
-  private gpuTooltip: vscode.MarkdownString;
+
   private lastTexts = { cpu: '', mem: '', gpu: '' };
+  private lastTooltips = { cpu: '', mem: '', gpu: '' };
 
   constructor() {
-    this.cpuItem = vscode.window.createStatusBarItem(
-      vscode.StatusBarAlignment.Left,
-      -100,
-    );
-    this.memItem = vscode.window.createStatusBarItem(
-      vscode.StatusBarAlignment.Left,
-      -101,
-    );
-    this.gpuItem = vscode.window.createStatusBarItem(
-      vscode.StatusBarAlignment.Left,
-      -102,
-    );
-    this.cpuTooltip = new vscode.MarkdownString();
-    this.memTooltip = new vscode.MarkdownString();
-    this.gpuTooltip = new vscode.MarkdownString();
-    this.cpuItem.tooltip = this.cpuTooltip;
-    this.memItem.tooltip = this.memTooltip;
-    this.gpuItem.tooltip = this.gpuTooltip;
+    this.cpuItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, -100);
+    this.memItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, -101);
+    this.gpuItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, -102);
   }
 
   private formatFixed(val: number, padLen: number): string {
@@ -45,18 +29,24 @@ export class StatusBarManager {
     key: keyof typeof this.lastTexts,
     text: string | null,
     tooltipContent: string | null,
-    tooltipObj: vscode.MarkdownString,
   ): void {
     if (text !== null && tooltipContent !== null) {
       if (text !== this.lastTexts[key]) {
         item.text = text;
         this.lastTexts[key] = text;
       }
-      tooltipObj.value = tooltipContent;
+
+      if (tooltipContent !== this.lastTooltips[key]) {
+        const md = new vscode.MarkdownString(tooltipContent);
+        md.isTrusted = true; 
+        item.tooltip = md;
+        this.lastTooltips[key] = tooltipContent;
+      }
+
       item.show();
     } else {
       this.lastTexts[key] = '';
-      tooltipObj.value = '';
+      this.lastTooltips[key] = '';
       item.hide();
     }
   }
@@ -75,7 +65,6 @@ export class StatusBarManager {
         ? `$(chip) ${this.formatFixed(cpu.overall, 5)}%`
         : null,
       cpu ? buildCpuTooltip(cpu) : null,
-      this.cpuTooltip,
     );
 
     let memText: string | null = null;
@@ -84,13 +73,11 @@ export class StatusBarManager {
       const usedStr = this.formatFixed(mem.usedBytes / 1024 / 1024 / 1024, totalStr.length);
       memText = `$(server) ${usedStr}/${totalStr} GB`;
     }
-
     this.updateItem(
       this.memItem,
       'mem',
       memText,
       mem ? buildMemoryTooltip(mem) : null,
-      this.memTooltip,
     );
 
     let gpuText: string | null = null;
@@ -121,13 +108,11 @@ export class StatusBarManager {
         gpuText = `$(graph-line) N/A`;
       }
     }
-
     this.updateItem(
       this.gpuItem,
       'gpu',
       gpuText,
       gpu && gpu.length > 0 ? buildGpuTooltip(gpu) : null,
-      this.gpuTooltip,
     );
   }
 
